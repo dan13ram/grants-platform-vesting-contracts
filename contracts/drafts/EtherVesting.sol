@@ -2,6 +2,7 @@ pragma solidity ^0.6.0;
 
 import "../access/Ownable.sol";
 import "../math/SafeMath.sol";
+import "../utils/ReentrancyGuard.sol";
 
 /**
  * @title EtherVesting
@@ -9,7 +10,7 @@ import "../math/SafeMath.sol";
  * typical vesting scheme, with a cliff and vesting period. Optionally revocable by the
  * owner.
  */
-contract EtherVesting is Ownable {
+contract EtherVesting is Ownable, ReentrancyGuard {
     // The vesting schedule is time-based (i.e. using block timestamps as opposed to e.g. block numbers), and is
     // therefore sensitive to timestamp manipulation (which is something miners can do, to a certain degree). Therefore,
     // it is recommended to avoid using short time durations (less than a minute). Typical vesting schemes, with a
@@ -111,7 +112,10 @@ contract EtherVesting is Ownable {
     /**
      * @notice Transfers vested ether to beneficiary.
      */
-    function release() public {
+    function release()
+        public
+        nonReentrant
+    {
         uint256 unreleased = _releasableAmount();
 
         require(unreleased > 0, "EtherVesting: no ether are due");
@@ -132,7 +136,11 @@ contract EtherVesting is Ownable {
      * @notice Allows the owner to revoke the vesting. Ether already vested
      * remain in the contract, the rest are returned to the owner.
      */
-    function revoke() public onlyOwner {
+    function revoke()
+        public
+        onlyOwner
+        nonReentrant
+    {
         require(_revocable, "EtherVesting: cannot revoke");
         require(!_revoked, "EtherVesting: ether already revoked");
 
