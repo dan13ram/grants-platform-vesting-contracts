@@ -19,9 +19,9 @@ contract EtherVesting is Ownable {
     using SafeMath for uint256;
 
     event EtherReleased(uint256 amount);
-    event EtherVestingRevoked(address token);
+    event EtherVestingRevoked();
 
-    // beneficiary of tokens after they are released
+    // beneficiary of Ether after they are released
     address private _beneficiary;
 
     // Durations and timestamps are expressed in UNIX time, the same units as block.timestamp.
@@ -35,13 +35,13 @@ contract EtherVesting is Ownable {
     bool private _revoked;
 
     /**
-     * @dev Creates a vesting contract that vests its balance of any ERC20 token to the
+     * @dev Creates a vesting contract that vests its balance of Ether to the
      * beneficiary, gradually in a linear fashion until start + duration. By then all
      * of the balance will have vested.
-     * @param beneficiary address of the beneficiary to whom vested tokens are transferred
-     * @param cliffDuration duration in seconds of the cliff in which tokens will begin to vest
+     * @param beneficiary address of the beneficiary to whom vested ether is transferred
+     * @param cliffDuration duration in seconds of the cliff in which ether will begin to vest
      * @param start the time (as Unix time) at which point vesting starts
-     * @param duration duration in seconds of the period in which the tokens will vest
+     * @param duration duration in seconds of the period in which the ether will vest
      * @param revocable whether the vesting is revocable or not
      */
     constructor (address beneficiary, uint256 start, uint256 cliffDuration, uint256 duration, bool revocable) public {
@@ -60,28 +60,28 @@ contract EtherVesting is Ownable {
     }
 
     /**
-     * @return the beneficiary of the tokens.
+     * @return the beneficiary of the ether.
      */
     function beneficiary() public view returns (address) {
         return _beneficiary;
     }
 
     /**
-     * @return the cliff time of the token vesting.
+     * @return the cliff time of the ether vesting.
      */
     function cliff() public view returns (uint256) {
         return _cliff;
     }
 
     /**
-     * @return the start time of the token vesting.
+     * @return the start time of the ether vesting.
      */
     function start() public view returns (uint256) {
         return _start;
     }
 
     /**
-     * @return the duration of the token vesting.
+     * @return the duration of the ether vesting.
      */
     function duration() public view returns (uint256) {
         return _duration;
@@ -95,14 +95,14 @@ contract EtherVesting is Ownable {
     }
 
     /**
-     * @return the amount of the token released.
+     * @return the amount of the ether released.
      */
     function released() public view returns (uint256) {
         return _released;
     }
 
     /**
-     * @return true if the token is revoked.
+     * @return true if the ether is revoked.
      */
     function revoked() public view returns (bool) {
         return _revoked;
@@ -114,7 +114,7 @@ contract EtherVesting is Ownable {
     function release() public {
         uint256 unreleased = _releasableAmount();
 
-        require(unreleased > 0, "EtherVesting: no tokens are due");
+        require(unreleased > 0, "EtherVesting: no ether are due");
 
         _released = _released.add(unreleased);
 
@@ -129,13 +129,12 @@ contract EtherVesting is Ownable {
     }
 
     /**
-     * @notice Allows the owner to revoke the vesting. Tokens already vested
+     * @notice Allows the owner to revoke the vesting. Ether already vested
      * remain in the contract, the rest are returned to the owner.
-     * @param token ERC20 token which is being vested
      */
-    function revoke(IERC20 token) public onlyOwner {
+    function revoke() public onlyOwner {
         require(_revocable, "EtherVesting: cannot revoke");
-        require(!_revoked, "EtherVesting: token already revoked");
+        require(!_revoked, "EtherVesting: ether already revoked");
 
         uint256 balance = address(this).balance;
 
@@ -150,12 +149,11 @@ contract EtherVesting is Ownable {
             "EtherVesting::Transfer Error. Unable to send refund to owner."
         );
 
-        emit EtherVestingRevoked(address(token));
+        emit EtherVestingRevoked();
     }
 
     /**
      * @dev Calculates the amount that has already vested but hasn't been released yet.
-     * @param token ERC20 token which is being vested
      */
     function _releasableAmount() private view returns (uint256) {
         return _vestedAmount().sub(_released);
