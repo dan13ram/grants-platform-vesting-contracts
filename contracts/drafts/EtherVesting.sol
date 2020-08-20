@@ -7,14 +7,15 @@ import "../utils/ReentrancyGuard.sol";
 /**
  * @title EtherVesting
  * @dev An ether holder contract that can release its ether balance gradually like a
- * typical vesting scheme, with a cliff and vesting period. Optionally revocable by the
+ * typical vesting scheme, with a vesting period. Optionally revocable by the
  * owner.
+ * NOTE: anyone can send ETH to the contract but only the owner or the beneficiary can receive ETH from this contract.
  */
 contract EtherVesting is Ownable, ReentrancyGuard {
     // The vesting schedule is time-based (i.e. using block timestamps as opposed to e.g. block numbers), and is
     // therefore sensitive to timestamp manipulation (which is something miners can do, to a certain degree). Therefore,
-    // it is recommended to avoid using short time durations (less than a minute). Typical vesting schemes, with a
-    // cliff period of a year and a duration of four years, are safe to use.
+    // it is recommended to avoid using short time durations (less than a minute). Typical vesting schemes, with
+    // a duration of four years, are safe to use.
     // solhint-disable not-rely-on-time
 
     using SafeMath for uint256;
@@ -26,7 +27,6 @@ contract EtherVesting is Ownable, ReentrancyGuard {
     address private _beneficiary;
 
     // Durations and timestamps are expressed in UNIX time, the same units as block.timestamp.
-    uint256 private _cliff;
     uint256 private _start;
     uint256 private _duration;
 
@@ -40,15 +40,13 @@ contract EtherVesting is Ownable, ReentrancyGuard {
      * beneficiary, gradually in a linear fashion until start + duration. By then all
      * of the balance will have vested.
      * @param beneficiary address of the beneficiary to whom vested ether is transferred
-     * @param cliffDuration duration in seconds of the cliff in which ether will begin to vest
      * @param start the time (as Unix time) at which point vesting starts
      * @param duration duration in seconds of the period in which the ether will vest
      * @param revocable whether the vesting is revocable or not
      */
-    constructor (address beneficiary, uint256 start, uint256 cliffDuration, uint256 duration, bool revocable) public {
+    constructor (address beneficiary, uint256 start, uint256 duration, bool revocable) public {
         require(beneficiary != address(0), "EtherVesting: beneficiary is the zero address");
         // solhint-disable-next-line max-line-length
-        require(cliffDuration <= duration, "EtherVesting: cliff is longer than duration");
         require(duration > 0, "EtherVesting: duration is 0");
         // solhint-disable-next-line max-line-length
         require(start.add(duration) > block.timestamp, "EtherVesting: final time is before current time");
@@ -56,7 +54,6 @@ contract EtherVesting is Ownable, ReentrancyGuard {
         _beneficiary = beneficiary;
         _revocable = revocable;
         _duration = duration;
-        _cliff = start.add(cliffDuration);
         _start = start;
     }
 
@@ -65,13 +62,6 @@ contract EtherVesting is Ownable, ReentrancyGuard {
      */
     function beneficiary() public view returns (address) {
         return _beneficiary;
-    }
-
-    /**
-     * @return the cliff time of the ether vesting.
-     */
-    function cliff() public view returns (uint256) {
-        return _cliff;
     }
 
     /**
@@ -174,9 +164,7 @@ contract EtherVesting is Ownable, ReentrancyGuard {
         uint256 currentBalance = address(this).balance;
         uint256 totalBalance = currentBalance.add(_released);
 
-        if (block.timestamp < _cliff) {
-            return 0;
-        } else if (block.timestamp >= _start.add(_duration) || _revoked) {
+        if (block.timestamp >= _start.add(_duration) || _revoked) {
             return totalBalance;
         } else {
             return totalBalance.mul(block.timestamp.sub(_start)).div(_duration);
